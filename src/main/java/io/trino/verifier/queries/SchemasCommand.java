@@ -94,15 +94,23 @@ public class SchemasCommand
         trinoClient.executeUpdate(format("CREATE SCHEMA \"%s\".\"%s\"", catalog, schema));
         ListeningExecutorService executor = listeningDecorator(newFixedThreadPool(threads, daemonThreadsNamed("executor-%s")));
         List<ListenableFuture<Void>> futures = schemaType.getTables().stream()
-                .map(table -> executor.submit(() -> copyTable(
-                        schemaType.getRequiredCatalog(),
-                        "sf" + scaleFactor,
-                        catalog,
-                        schema,
-                        table,
-                        bucketCount > 0 ? schemaType.getBucketingScheme().get(table) : Set.of(),
-                        partitioned ? schemaType.getPartitioningScheme().get(table) : Set.of(),
-                        bucketCount)))
+                .map(table -> {
+                    try {
+                        Thread.sleep(2000);
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return executor.submit(() -> copyTable(
+                            schemaType.getRequiredCatalog(),
+                            "sf" + scaleFactor,
+                            catalog,
+                            schema,
+                            table,
+                            bucketCount > 0 ? schemaType.getBucketingScheme().get(table) : Set.of(),
+                            partitioned ? schemaType.getPartitioningScheme().get(table) : Set.of(),
+                            bucketCount));
+                })
                 .map(MoreFutures::asVoid)
                 .collect(toImmutableList());
         ListenableFuture<List<Void>> future = allAsList(futures);
